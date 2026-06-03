@@ -1,0 +1,314 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fylux-pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('FYLUX-PRO: Service Worker activé avec succès.'))
+                    .catch(err => console.log('FYLUX_SYS: Échec d\'activation du Service Worker', err));
+            });
+        }
+    </script>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased">
+
+    <header class="bg-slate-900 border-b border-slate-800 shadow-xl px-6 py-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <h1 class="text-xl font-bold font-mono tracking-wider text-slate-200 select-none">
+                    [ <span class="text-cyan-500">FYLUX</span> // SYS ]
+                </h1>
+            </div>
+            <span class="text-xs font-mono bg-slate-950 text-cyan-400 border border-slate-800 px-3 py-1 rounded-md tracking-wider" id="noteCount">
+                0 COURS INDEXÉS
+            </span>
+        </div>
+    </header>
+
+    <main class="container mx-auto flex-1 p-6 grid grid-cols-1 lg:grid-cols-3 gap-8 transition-all duration-300" id="mainGrid">
+        
+        <section id="editorPanel" class="lg:col-span-1 bg-slate-900 p-6 rounded-xl border border-slate-800 h-fit sticky top-6 shadow-lg transition-all duration-300">
+            <div class="flex justify-between items-center mb-5 border-b border-slate-800 pb-3">
+                <h2 id="editorTitle" class="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                    <span id="editorStatusIndicator" class="w-2 h-2 rounded-full bg-cyan-500 block"></span> Consigner une note
+                </h2>
+                <button type="button" id="resizeBtn" onclick="toggleEditorSize()" 
+                    class="text-xs font-mono bg-slate-950 hover:bg-slate-800 text-cyan-400 border border-slate-800 px-2 py-1 rounded cursor-pointer transition">
+                    [ AGRANDIR + ]
+                </button>
+            </div>
+            
+            <form id="noteForm" class="space-y-5">
+                <input type="hidden" id="noteIdInput">
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Cours / Discipline</label>
+                    <input type="text" id="courseInput" required placeholder="Ex: Algorithmique, Économie..." 
+                        class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-200 placeholder-slate-600 transition text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Date de la session</label>
+                    <input type="date" id="dateInput" required 
+                        class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-200 transition text-sm color-scheme-dark">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Contenu des explications</label>
+                    <textarea id="contentInput" required rows="8" placeholder="Écrivez ici les points importants et les explications clés du professeur..." 
+                        class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-200 placeholder-slate-600 transition text-sm resize-y font-sans leading-relaxed min-h-[200px]"></textarea>
+                </div>
+
+                <div class="flex gap-3">
+                    <button type="submit" id="submitBtn"
+                        class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-semibold py-2.5 px-4 rounded-lg transition duration-150 shadow-md cursor-pointer text-center text-sm tracking-wide">
+                        Enregistrer
+                    </button>
+                    <button type="button" id="cancelEditBtn" onclick="resetEditor()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 px-3 rounded-lg text-sm transition cursor-pointer">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section id="displayPanel" class="lg:col-span-2 flex flex-col space-y-5 transition-all duration-300">
+            
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md">
+                <input type="text" id="searchInput" placeholder="Rechercher un mot-clé dans les dossiers ou les cours..." 
+                    class="w-full pl-3 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-200 text-sm placeholder-slate-600">
+            </div>
+
+            <div id="foldersContainer" class="space-y-4">
+                </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-900 border-t border-slate-800 text-slate-500 text-center py-4 text-xs font-mono tracking-wider mt-8">
+    LOCAL_STORAGE_MODE // DESIGNED & DEVELOPED BY <span class="text-cyan-500 font-bold">FYLUX...Yves-Matimbia</span>
+    </footer>
+
+    <script>
+        const noteForm = document.getElementById('noteForm');
+        const noteIdInput = document.getElementById('noteIdInput');
+        const courseInput = document.getElementById('courseInput');
+        const dateInput = document.getElementById('dateInput');
+        const contentInput = document.getElementById('contentInput');
+        const foldersContainer = document.getElementById('foldersContainer');
+        const noteCount = document.getElementById('noteCount');
+        const searchInput = document.getElementById('searchInput');
+        const submitBtn = document.getElementById('submitBtn');
+        const cancelEditBtn = document.getElementById('cancelEditBtn');
+        const editorTitle = document.getElementById('editorTitle');
+
+        const mainGrid = document.getElementById('mainGrid');
+        const editorPanel = document.getElementById('editorPanel');
+        const displayPanel = document.getElementById('displayPanel');
+        const resizeBtn = document.getElementById('resizeBtn');
+
+        let notes = JSON.parse(localStorage.getItem('uni_notes')) || [];
+        let isExpanded = false;
+
+        dateInput.value = new Date().toISOString().split('T')[0];
+
+        noteForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const noteId = noteIdInput.value;
+            const courseValue = courseInput.value.trim();
+            const dateValue = dateInput.value;
+            const contentValue = contentInput.value.trim();
+
+            if (noteId) {
+                notes = notes.map(note => {
+                    if (note.id == noteId) {
+                        return { ...note, course: courseValue, date: dateValue, content: contentValue };
+                    }
+                    return note;
+                });
+            } else {
+                const newNote = {
+                    id: Date.now(),
+                    course: courseValue,
+                    date: dateValue,
+                    content: contentValue
+                };
+                notes.push(newNote);
+            }
+
+            saveNotes();
+            resetEditor();
+            displayFolders();
+            
+            if(isExpanded) toggleEditorSize();
+        });
+
+        function saveNotes() {
+            localStorage.setItem('uni_notes', JSON.stringify(notes));
+        }
+
+        window.editNote = function(id, event) {
+            event.stopPropagation(); 
+            const targetNote = notes.find(note => note.id == id);
+            if (!targetNote) return;
+
+            noteIdInput.value = targetNote.id;
+            courseInput.value = targetNote.course;
+            dateInput.value = targetNote.date;
+            contentInput.value = targetNote.content;
+
+            editorTitle.innerHTML = `<span id="editorStatusIndicator" class="w-2 h-2 rounded-full bg-amber-500 block"></span> Mode Édition`;
+            submitBtn.textContent = "Mettre à jour la note";
+            submitBtn.classList.remove('bg-cyan-600', 'hover:bg-cyan-500');
+            submitBtn.classList.add('bg-amber-600', 'hover:bg-amber-500');
+            cancelEditBtn.classList.remove('hidden');
+            
+            contentInput.focus();
+        }
+
+        window.resetEditor = function() {
+            noteForm.reset();
+            noteIdInput.value = "";
+            dateInput.value = new Date().toISOString().split('T')[0];
+            
+            editorTitle.innerHTML = `<span id="editorStatusIndicator" class="w-2 h-2 rounded-full bg-cyan-500 block"></span> Consigner une note`;
+            submitBtn.textContent = "Enregistrer";
+            submitBtn.classList.remove('bg-amber-600', 'hover:bg-amber-500');
+            submitBtn.classList.add('bg-cyan-600', 'hover:bg-cyan-500');
+            cancelEditBtn.classList.add('hidden');
+        }
+
+        window.deleteNote = function(id, event) {
+            event.stopPropagation();
+            if(confirm("Confirmer la suppression définitive de cette session ?")) {
+                notes = notes.filter(note => note.id !== id);
+                saveNotes();
+                displayFolders();
+                if(noteIdInput.value == id) resetEditor();
+            }
+        }
+
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString('fr-FR', options);
+        }
+
+        function displayFolders() {
+            const searchTerm = searchInput.value.toLowerCase();
+
+            const filteredNotes = notes.filter(note => {
+                return note.course.toLowerCase().includes(searchTerm) || note.content.toLowerCase().includes(searchTerm);
+            });
+
+            const groupedByCourse = {};
+            filteredNotes.forEach(note => {
+                if (!groupedByCourse[note.course]) {
+                    groupedByCourse[note.course] = [];
+                }
+                groupedByCourse[note.course].push(note);
+            });
+
+            const uniqueCoursesCount = Object.keys(groupedByCourse).length;
+            noteCount.textContent = `${uniqueCoursesCount} COURS INDEXÉ${uniqueCoursesCount > 1 ? 'S' : ''}`;
+            foldersContainer.innerHTML = '';
+
+            if (uniqueCoursesCount === 0) {
+                foldersContainer.innerHTML = `
+                    <div class="bg-slate-900 p-12 text-center rounded-xl border border-dashed border-slate-800 text-slate-500 text-sm">
+                        Aucun dossier ou cours trouvé.
+                    </div>
+                `;
+                return;
+            }
+
+            for (const course in groupedByCourse) {
+                const courseNotes = groupedByCourse[course];
+                courseNotes.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                const folderElement = document.createElement('div');
+                folderElement.className = "bg-slate-900 rounded-xl border border-slate-800 shadow-md overflow-hidden";
+                
+                folderElement.innerHTML = `
+                    <div onclick="this.nextElementSibling.classList.toggle('hidden')" class="bg-slate-900 hover:bg-slate-850 p-4 flex justify-between items-center cursor-pointer select-none transition border-b border-slate-800/50">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-amber-500 font-bold text-lg">📁</span>
+                            <span class="font-medium text-slate-200 tracking-wide">${escapeHTML(course)}</span>
+                        </div>
+                        <span class="text-xs font-mono bg-slate-950 text-slate-400 px-2 py-0.5 rounded-full border border-slate-800">
+                            ${courseNotes.length} session(s)
+                        </span>
+                    </div>
+                    
+                    <div class="hidden bg-slate-950/40 divide-y divide-slate-900">
+                        ${courseNotes.map(note => `
+                            <div class="p-4 hover:bg-slate-900/50 transition flex flex-col space-y-2">
+                                <div class="flex justify-between items-center text-xs">
+                                    <div class="text-cyan-400 font-mono font-medium flex items-center gap-1.5">
+                                        🗓️ Session du ${formatDate(note.date)}
+                                    </div>
+                                    <div class="flex space-x-4 font-mono text-[11px]">
+                                        <button onclick="editNote(${note.id}, event)" class="text-slate-400 hover:text-amber-400 transition cursor-pointer font-medium">
+                                            [ÉDITER]
+                                        </button>
+                                        <button onclick="deleteNote(${note.id}, event)" class="text-slate-500 hover:text-red-400 transition cursor-pointer font-medium">
+                                            [SUPPRIMER]
+                                        </button>
+                                    </div>
+                                </div>
+                                <div onclick="this.classList.toggle('line-clamp-2')" class="text-sm text-slate-400 font-sans leading-relaxed cursor-pointer line-clamp-2 transition-all" title="Cliquez pour agrandir/réduire le texte">
+                                    ${escapeHTML(note.content)}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                foldersContainer.appendChild(folderElement);
+            }
+        }
+
+        window.toggleEditorSize = function() {
+            isExpanded = !isExpanded;
+            if (isExpanded) {
+                mainGrid.classList.remove('grid-cols-1', 'lg:grid-cols-3');
+                mainGrid.classList.add('grid-cols-1');
+                editorPanel.classList.remove('lg:col-span-1');
+                displayPanel.classList.remove('lg:col-span-2');
+                contentInput.rows = 15;
+                resizeBtn.textContent = "[ RÉDUIRE - ]";
+            } else {
+                mainGrid.classList.remove('grid-cols-1');
+                mainGrid.classList.add('grid-cols-1', 'lg:grid-cols-3');
+                editorPanel.classList.add('lg:col-span-1');
+                displayPanel.classList.add('lg:col-span-2');
+                contentInput.rows = 8;
+                resizeBtn.textContent = "[ AGRANDIR + ]";
+            }
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        searchInput.addEventListener('input', displayFolders);
+        displayFolders();
+    </script>
+</body>
+</html>
