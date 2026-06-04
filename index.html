@@ -1,4 +1,12 @@
-
+<!-- 
+========================================================================
+APPLICATION : FYLUX-PRO // WORKSPACE
+DEVELOPER   : Fylux (Programmer / Student at IUEA)
+VERSION     : 2.0 (Mise à jour majeure)
+DATE        : June 2026
+DESCRIPTION : Custom PWA with Sketchpad, Rich Snippets, Trash System & Image Upload
+========================================================================
+-->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -11,6 +19,12 @@
         ::-webkit-scrollbar-track { background: #0f172a; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .color-scheme-dark { color-scheme: dark; }
+        @media print {
+            body * { visibility: hidden; }
+            #printSection, #printSection * { visibility: visible; }
+            #printSection { position: absolute; left: 0; top: 0; width: 100%; color: black !important; }
+        }
     </style>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
@@ -28,6 +42,9 @@
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased">
 
+    <!-- Zone cachée dédiée à l'impression propre en PDF -->
+    <div id="printSection" class="hidden p-8 bg-white text-black"></div>
+
     <header class="bg-slate-900 border-b border-slate-800 shadow-xl px-6 py-4">
         <div class="container mx-auto flex justify-between items-center">
             <div class="flex items-center space-x-3">
@@ -35,14 +52,20 @@
                     [ <span class="text-cyan-500">FYLUX</span> // SYS ]
                 </h1>
             </div>
-            <span class="text-xs font-mono bg-slate-950 text-cyan-400 border border-slate-800 px-3 py-1 rounded-md tracking-wider" id="noteCount">
-                0 COURS INDEXÉS
-            </span>
+            <div class="flex items-center space-x-4">
+                <button onclick="toggleTrashModal()" class="text-xs font-mono bg-slate-950 hover:bg-slate-850 text-red-400 border border-slate-800 px-3 py-1 rounded-md transition cursor-pointer">
+                    🗑️ CORBEILLE (<span id="trashCount">0</span>)
+                </button>
+                <span class="text-xs font-mono bg-slate-950 text-cyan-400 border border-slate-800 px-3 py-1 rounded-md tracking-wider" id="noteCount">
+                    0 COURS INDEXÉS
+                </span>
+            </div>
         </div>
     </header>
 
     <main class="container mx-auto flex-1 p-6 grid grid-cols-1 lg:grid-cols-3 gap-8 transition-all duration-300" id="mainGrid">
         
+        <!-- Éditeur (Gauche) -->
         <section id="editorPanel" class="lg:col-span-1 bg-slate-900 p-6 rounded-xl border border-slate-800 h-fit sticky top-6 shadow-lg transition-all duration-300">
             <div class="flex justify-between items-center mb-5 border-b border-slate-800 pb-3">
                 <h2 id="editorTitle" class="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
@@ -63,16 +86,45 @@
                         class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-200 placeholder-slate-600 transition text-sm">
                 </div>
 
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Date de la session</label>
-                    <input type="date" id="dateInput" required 
-                        class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-200 transition text-sm color-scheme-dark">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Date de la session</label>
+                        <input type="date" id="dateInput" required 
+                            class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-200 transition text-sm color-scheme-dark">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Importance / Degré</label>
+                        <select id="degreeInput" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-200 transition text-sm color-scheme-dark">
+                            <option value="💡 Normal">💡 Normal</option>
+                            <option value="🔥 Important">🔥 Important</option>
+                            <option value="🚨 Critique">🚨 Critique</option>
+                        </select>
+                    </div>
                 </div>
 
+                <!-- Outils d'édition enrichie & Médias -->
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Contenu des explications</label>
-                    <textarea id="contentInput" required rows="8" placeholder="Écrivez ici les points importants et les explications clés du professeur..." 
-                        class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-200 placeholder-slate-600 transition text-sm resize-y font-sans leading-relaxed min-h-[200px]"></textarea>
+                    <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Contenu & Outils</label>
+                    <div class="flex flex-wrap gap-1 bg-slate-950 p-2 rounded-t-lg border-t border-x border-slate-800 font-mono text-xs">
+                        <button type="button" onclick="insertFormat('• ')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 rounded text-slate-300"> Listes (•) </button>
+                        <button type="button" onclick="insertFormat('> ')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 rounded text-slate-300"> Citations (&gt;) </button>
+                        <button type="button" onclick="insertFormat('✓ ')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 rounded text-slate-300"> Validé (✓) </button>
+                        <button type="button" onclick="openSketchpad()" class="px-2 py-1 bg-cyan-950 hover:bg-cyan-900 border border-cyan-800 rounded text-cyan-400"> 🎨 Dessiner </button>
+                        <label class="px-2 py-1 bg-slate-900 hover:bg-slate-800 rounded text-slate-300 cursor-pointer">
+                            📷 Image <input type="file" id="imageUpload" accept="image/*" class="hidden" onchange="handleImageUpload(this)">
+                        </label>
+                    </div>
+                    <textarea id="contentInput" required rows="8" placeholder="Écrivez ici vos explications clés..." 
+                        class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-b-lg focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-200 placeholder-slate-600 transition text-sm resize-y font-sans leading-relaxed min-h-[160px]"></textarea>
+                </div>
+
+                <!-- Zone de prévisualisation des médias rattachés -->
+                <div id="mediaPreviewArea" class="hidden space-y-2">
+                    <span class="block text-[11px] font-mono text-slate-500">MÉDIA ATTACHÉ :</span>
+                    <div class="relative w-full max-h-40 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden flex justify-center items-center">
+                        <img id="attachedImage" src="" class="max-h-40 object-contain">
+                        <button type="button" onclick="removeAttachedMedia()" class="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 text-xs w-5 h-5 flex items-center justify-center font-bold">X</button>
+                    </div>
                 </div>
 
                 <div class="flex gap-3">
@@ -87,21 +139,49 @@
             </form>
         </section>
 
+        <!-- Explorateur & Liste (Droite) -->
         <section id="displayPanel" class="lg:col-span-2 flex flex-col space-y-5 transition-all duration-300">
-            
-            <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md">
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md flex gap-3">
                 <input type="text" id="searchInput" placeholder="Rechercher un mot-clé dans les dossiers ou les cours..." 
                     class="w-full pl-3 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-200 text-sm placeholder-slate-600">
             </div>
 
-            <div id="foldersContainer" class="space-y-4">
-                </div>
+            <div id="foldersContainer" class="space-y-4"></div>
         </section>
-
     </main>
 
+    <!-- MODAL : Espace Croquis (Dessin) -->
+    <div id="sketchpadModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl w-full max-w-lg space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="text-sm font-mono text-cyan-400">🎨 ZONE DE CROQUIS</h3>
+                <button onclick="closeSketchpad()" class="text-slate-500 hover:text-slate-300 font-bold">X</button>
+            </div>
+            <canvas id="sketchCanvas" width="450" height="300" class="w-full bg-slate-950 border border-slate-800 rounded-lg touch-none cursor-crosshair"></canvas>
+            <div class="flex gap-2 justify-end text-xs font-mono">
+                <button onclick="clearCanvas()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded hover:bg-slate-700">Effacer</button>
+                <button onclick="saveCanvasToNote()" class="px-3 py-1.5 bg-cyan-600 text-slate-950 rounded font-bold hover:bg-cyan-500">Injecter au cours</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL : Gestion de la Corbeille -->
+    <div id="trashModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl w-full max-w-xl space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="text-sm font-mono text-red-400">🗑️ ARCHIVES DE LA CORBEILLE</h3>
+                <button onclick="toggleTrashModal()" class="text-slate-500 hover:text-slate-300 font-bold">X</button>
+            </div>
+            <div id="trashContainer" class="max-h-60 overflow-y-auto space-y-2 divide-y divide-slate-800/40 pr-1"></div>
+            <div class="flex justify-between items-center text-xs font-mono pt-2 border-t border-slate-800">
+                <button onclick="emptyTrashPermanently()" class="text-red-400 hover:underline">Tout supprimer définitivement</button>
+                <button onclick="toggleTrashModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded">Fermer</button>
+            </div>
+        </div>
+    </div>
+
     <footer class="bg-slate-900 border-t border-slate-800 text-slate-500 text-center py-4 text-xs font-mono tracking-wider mt-8">
-    LOCAL_STORAGE_MODE // DESIGNED & DEVELOPED BY <span class="text-cyan-500 font-bold">FYLUX...Yves-Matimbia</span>
+        LOCAL_STORAGE_MODE // DESIGNED & DEVELOPED BY <span class="text-cyan-500 font-bold">FYLUX...Yves-Matimbia</span>
     </footer>
 
     <script>
@@ -109,138 +189,285 @@
         const noteIdInput = document.getElementById('noteIdInput');
         const courseInput = document.getElementById('courseInput');
         const dateInput = document.getElementById('dateInput');
+        const degreeInput = document.getElementById('degreeInput');
         const contentInput = document.getElementById('contentInput');
         const foldersContainer = document.getElementById('foldersContainer');
         const noteCount = document.getElementById('noteCount');
+        const trashCount = document.getElementById('trashCount');
         const searchInput = document.getElementById('searchInput');
         const submitBtn = document.getElementById('submitBtn');
         const cancelEditBtn = document.getElementById('cancelEditBtn');
         const editorTitle = document.getElementById('editorTitle');
+        const mediaPreviewArea = document.getElementById('mediaPreviewArea');
+        const attachedImage = document.getElementById('attachedImage');
 
         const mainGrid = document.getElementById('mainGrid');
         const editorPanel = document.getElementById('editorPanel');
         const displayPanel = document.getElementById('displayPanel');
         const resizeBtn = document.getElementById('resizeBtn');
 
+        // Canvas Setup
+        const canvas = document.getElementById('sketchCanvas');
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+
         let notes = JSON.parse(localStorage.getItem('uni_notes')) || [];
+        let trash = JSON.parse(localStorage.getItem('uni_trash')) || [];
+        let currentMediaBase64 = "";
         let isExpanded = false;
 
         dateInput.value = new Date().toISOString().split('T')[0];
 
+        // Format Insertion Engine
+        window.insertFormat = function(syntax) {
+            const start = contentInput.selectionStart;
+            const end = contentInput.selectionEnd;
+            const currentText = contentInput.value;
+            contentInput.value = currentText.substring(0, start) + syntax + currentText.substring(end);
+            contentInput.focus();
+            contentInput.setSelectionRange(start + syntax.length, start + syntax.length);
+        };
+
+        // Image Attachment Converter
+        window.handleImageUpload = function(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentMediaBase64 = e.target.result;
+                    attachedImage.src = currentMediaBase64;
+                    mediaPreviewArea.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        window.removeAttachedMedia = function() {
+            currentMediaBase64 = "";
+            attachedImage.src = "";
+            mediaPreviewArea.classList.add('hidden');
+            document.getElementById('imageUpload').value = "";
+        };
+
+        // Canvas Mechanics
+        window.openSketchpad = function() {
+            document.getElementById('sketchpadModal').classList.remove('hidden');
+            clearCanvas();
+        };
+        window.closeSketchpad = function() {
+            document.getElementById('sketchpadModal').classList.add('hidden');
+        };
+        window.clearCanvas = function() {
+            ctx.fillStyle = "#020617";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = "#22d3ee";
+            ctx.lineWidth = 3;
+            ctx.lineCap = "round";
+        };
+
+        function getCanvasMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            // Prise en compte de la mise à l'échelle CSS pour le touch tactile
+            return {
+                x: (e.clientX || e.touches[0].clientX) - rect.left,
+                y: (e.clientY || e.touches[0].clientY) - rect.top
+            };
+        }
+
+        canvas.addEventListener('mousedown', (e) => { drawing = true; ctx.beginPath(); const p = getCanvasMousePos(e); ctx.moveTo(p.x, p.y); });
+        canvas.addEventListener('mousemove', (e) => { if (!drawing) return; const p = getCanvasMousePos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); });
+        canvas.addEventListener('mouseup', () => drawing = false);
+        canvas.addEventListener('touchstart', (e) => { drawing = true; ctx.beginPath(); const p = getCanvasMousePos(e); ctx.moveTo(p.x, p.y); e.preventDefault(); });
+        canvas.addEventListener('touchmove', (e) => { if (!drawing) return; const p = getCanvasMousePos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); });
+        canvas.addEventListener('touchend', () => drawing = false);
+
+        window.saveCanvasToNote = function() {
+            currentMediaBase64 = canvas.toDataURL();
+            attachedImage.src = currentMediaBase64;
+            mediaPreviewArea.classList.remove('hidden');
+            closeSketchpad();
+        };
+
+        // Form operations
         noteForm.addEventListener('submit', (e) => {
             e.preventDefault();
-
             const noteId = noteIdInput.value;
             const courseValue = courseInput.value.trim();
             const dateValue = dateInput.value;
+            const degreeValue = degreeInput.value;
             const contentValue = contentInput.value.trim();
 
             if (noteId) {
                 notes = notes.map(note => {
                     if (note.id == noteId) {
-                        return { ...note, course: courseValue, date: dateValue, content: contentValue };
+                        return { ...note, course: courseValue, date: dateValue, degree: degreeValue, content: contentValue, media: currentMediaBase64 };
                     }
                     return note;
                 });
             } else {
-                const newNote = {
+                notes.push({
                     id: Date.now(),
                     course: courseValue,
                     date: dateValue,
-                    content: contentValue
-                };
-                notes.push(newNote);
+                    degree: degreeValue,
+                    content: contentValue,
+                    media: currentMediaBase64
+                });
             }
 
             saveNotes();
             resetEditor();
             displayFolders();
-            
             if(isExpanded) toggleEditorSize();
         });
 
         function saveNotes() {
             localStorage.setItem('uni_notes', JSON.stringify(notes));
+            localStorage.setItem('uni_trash', JSON.stringify(trash));
+            trashCount.textContent = trash.length;
         }
 
         window.editNote = function(id, event) {
             event.stopPropagation(); 
-            const targetNote = notes.find(note => note.id == id);
-            if (!targetNote) return;
+            const target = notes.find(n => n.id == id);
+            if (!target) return;
 
-            noteIdInput.value = targetNote.id;
-            courseInput.value = targetNote.course;
-            dateInput.value = targetNote.date;
-            contentInput.value = targetNote.content;
-
-            editorTitle.innerHTML = `<span id="editorStatusIndicator" class="w-2 h-2 rounded-full bg-amber-500 block"></span> Mode Édition`;
-            submitBtn.textContent = "Mettre à jour la note";
-            submitBtn.classList.remove('bg-cyan-600', 'hover:bg-cyan-500');
-            submitBtn.classList.add('bg-amber-600', 'hover:bg-amber-500');
-            cancelEditBtn.classList.remove('hidden');
+            noteIdInput.value = target.id;
+            courseInput.value = target.course;
+            dateInput.value = target.date;
+            degreeInput.value = target.degree || "💡 Normal";
+            contentInput.value = target.content;
             
+            if(target.media) {
+                currentMediaBase64 = target.media;
+                attachedImage.src = currentMediaBase64;
+                mediaPreviewArea.classList.remove('hidden');
+            } else {
+                removeAttachedMedia();
+            }
+
+            editorTitle.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 block"></span> Mode Édition`;
+            submitBtn.textContent = "Mettre à jour la note";
+            submitBtn.classList.replace('bg-cyan-600', 'bg-amber-600');
+            submitBtn.classList.replace('hover:bg-cyan-500', 'hover:bg-amber-500');
+            cancelEditBtn.classList.remove('hidden');
             contentInput.focus();
-        }
+        };
 
         window.resetEditor = function() {
             noteForm.reset();
             noteIdInput.value = "";
             dateInput.value = new Date().toISOString().split('T')[0];
-            
-            editorTitle.innerHTML = `<span id="editorStatusIndicator" class="w-2 h-2 rounded-full bg-cyan-500 block"></span> Consigner une note`;
+            removeAttachedMedia();
+            editorTitle.innerHTML = `<span class="w-2 h-2 rounded-full bg-cyan-500 block"></span> Consigner une note`;
             submitBtn.textContent = "Enregistrer";
-            submitBtn.classList.remove('bg-amber-600', 'hover:bg-amber-500');
-            submitBtn.classList.add('bg-cyan-600', 'hover:bg-cyan-500');
+            submitBtn.classList.replace('bg-amber-600', 'bg-cyan-600');
+            submitBtn.classList.replace('hover:bg-amber-500', 'hover:bg-cyan-500');
             cancelEditBtn.classList.add('hidden');
-        }
+        };
 
+        // Trash System Engine
         window.deleteNote = function(id, event) {
             event.stopPropagation();
-            if(confirm("Confirmer la suppression définitive de cette session ?")) {
-                notes = notes.filter(note => note.id !== id);
+            const noteIndex = notes.findIndex(n => n.id === id);
+            if(noteIndex > -1) {
+                const targetNote = notes.splice(noteIndex, 1)[0];
+                trash.push(targetNote);
                 saveNotes();
                 displayFolders();
                 if(noteIdInput.value == id) resetEditor();
             }
+        };
+
+        window.toggleTrashModal = function() {
+            const modal = document.getElementById('trashModal');
+            modal.classList.toggle('hidden');
+            if(!modal.classList.contains('hidden')) displayTrash();
+        };
+
+        function displayTrash() {
+            const container = document.getElementById('trashContainer');
+            container.innerHTML = "";
+            if(trash.length === 0) {
+                container.innerHTML = `<div class="text-slate-500 font-mono text-xs text-center py-6">La corbeille est vide.</div>`;
+                return;
+            }
+            trash.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = "py-2 flex justify-between items-center text-xs font-mono";
+                itemDiv.innerHTML = `
+                    <div class="truncate max-w-[350px]">
+                        <span class="text-red-400">[${escapeHTML(item.course)}]</span> ${escapeHTML(item.content)}
+                    </div>
+                    <button onclick="restoreNote(${item.id})" class="text-cyan-400 hover:underline shrink-0 ml-2">[RESTAURER]</button>
+                `;
+                container.appendChild(itemDiv);
+            });
         }
+
+        window.restoreNote = function(id) {
+            const idx = trash.findIndex(n => n.id === id);
+            if(idx > -1) {
+                const revived = trash.splice(idx, 1)[0];
+                notes.push(revived);
+                saveNotes();
+                displayFolders();
+                displayTrash();
+            }
+        };
+
+        window.emptyTrashPermanently = function() {
+            if(confirm("Vider définitivement la corbeille ? Cette action est irréversible.")) {
+                trash = [];
+                saveNotes();
+                displayTrash();
+            }
+        };
+
+        // Print to PDF
+        window.printPDF = function(id, event) {
+            event.stopPropagation();
+            const note = notes.find(n => n.id == id);
+            if (!note) return;
+
+            const printSection = document.getElementById('printSection');
+            printSection.innerHTML = `
+                <h1 style="font-size: 24px; margin-bottom: 5px; font-weight: bold; font-family: monospace;">[ FYLUX-PRO // ARCHIVE ]</h1>
+                <p style="font-size: 14px; color: #555; margin-bottom: 20px;">Cours : ${note.course} | Date : ${note.date} | Degré : ${note.degree || 'Normal'}</p>
+                <hr style="margin-bottom: 20px;" />
+                <div style="font-size: 16px; line-height: 1.6; white-space: pre-wrap;">${note.content}</div>
+                ${note.media ? `<br><img src="${note.media}" style="max-width: 100%; border: 1px solid #ccc; margin-top:20px;" />` : ''}
+            `;
+            window.print();
+        };
 
         function formatDate(dateString) {
-            const options = { year: 'numeric', month: 'short', day: 'numeric' };
-            return new Date(dateString).toLocaleDateString('fr-FR', options);
+            return new Date(dateString).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' });
         }
 
+        // Folder Render Engine
         function displayFolders() {
             const searchTerm = searchInput.value.toLowerCase();
-
-            const filteredNotes = notes.filter(note => {
-                return note.course.toLowerCase().includes(searchTerm) || note.content.toLowerCase().includes(searchTerm);
+            const filtered = notes.filter(n => n.course.toLowerCase().includes(searchTerm) || n.content.toLowerCase().includes(searchTerm));
+            const grouped = {};
+            
+            filtered.forEach(n => {
+                if (!grouped[n.course]) grouped[n.course] = [];
+                grouped[n.course].push(n);
             });
 
-            const groupedByCourse = {};
-            filteredNotes.forEach(note => {
-                if (!groupedByCourse[note.course]) {
-                    groupedByCourse[note.course] = [];
-                }
-                groupedByCourse[note.course].push(note);
-            });
-
-            const uniqueCoursesCount = Object.keys(groupedByCourse).length;
-            noteCount.textContent = `${uniqueCoursesCount} COURS INDEXÉ${uniqueCoursesCount > 1 ? 'S' : ''}`;
+            const uniqueCount = Object.keys(grouped).length;
+            noteCount.textContent = `${uniqueCount} COURS INDEXÉ${uniqueCount > 1 ? 'S' : ''}`;
+            trashCount.textContent = trash.length;
             foldersContainer.innerHTML = '';
 
-            if (uniqueCoursesCount === 0) {
-                foldersContainer.innerHTML = `
-                    <div class="bg-slate-900 p-12 text-center rounded-xl border border-dashed border-slate-800 text-slate-500 text-sm">
-                        Aucun dossier ou cours trouvé.
-                    </div>
-                `;
+            if (uniqueCount === 0) {
+                foldersContainer.innerHTML = `<div class="bg-slate-900 p-12 text-center rounded-xl border border-dashed border-slate-800 text-slate-500 text-sm">Aucun dossier ou cours trouvé.</div>`;
                 return;
             }
 
-            for (const course in groupedByCourse) {
-                const courseNotes = groupedByCourse[course];
-                courseNotes.sort((a, b) => new Date(b.date) - new Date(a.date));
-
+            for (const course in grouped) {
+                const courseNotes = grouped[course].sort((a, b) => new Date(b.date) - new Date(a.date));
                 const folderElement = document.createElement('div');
                 folderElement.className = "bg-slate-900 rounded-xl border border-slate-800 shadow-md overflow-hidden";
                 
@@ -256,24 +483,22 @@
                     </div>
                     
                     <div class="hidden bg-slate-950/40 divide-y divide-slate-900">
-                        ${courseNotes.map(note => `
+                        ${courseNotes.map(n => `
                             <div class="p-4 hover:bg-slate-900/50 transition flex flex-col space-y-2">
                                 <div class="flex justify-between items-center text-xs">
                                     <div class="text-cyan-400 font-mono font-medium flex items-center gap-1.5">
-                                        🗓️ Session du ${formatDate(note.date)}
+                                        🗓️ ${formatDate(n.date)} <span class="text-[11px] text-slate-500">(${n.degree || '💡 Normal'})</span>
                                     </div>
-                                    <div class="flex space-x-4 font-mono text-[11px]">
-                                        <button onclick="editNote(${note.id}, event)" class="text-slate-400 hover:text-amber-400 transition cursor-pointer font-medium">
-                                            [ÉDITER]
-                                        </button>
-                                        <button onclick="deleteNote(${note.id}, event)" class="text-slate-500 hover:text-red-400 transition cursor-pointer font-medium">
-                                            [SUPPRIMER]
-                                        </button>
+                                    <div class="flex space-x-3 font-mono text-[11px]">
+                                        <button onclick="printPDF(${n.id}, event)" class="text-cyan-500 hover:text-cyan-400 transition cursor-pointer font-medium">[PDF]</button>
+                                        <button onclick="editNote(${n.id}, event)" class="text-slate-400 hover:text-amber-400 transition cursor-pointer font-medium">[ÉDITER]</button>
+                                        <button onclick="deleteNote(${n.id}, event)" class="text-slate-500 hover:text-red-400 transition cursor-pointer font-medium">[EFFACER]</button>
                                     </div>
                                 </div>
-                                <div onclick="this.classList.toggle('line-clamp-2')" class="text-sm text-slate-400 font-sans leading-relaxed cursor-pointer line-clamp-2 transition-all" title="Cliquez pour agrandir/réduire le texte">
-                                    ${escapeHTML(note.content)}
+                                <div onclick="this.classList.toggle('line-clamp-2')" class="text-sm text-slate-400 font-sans leading-relaxed cursor-pointer line-clamp-2 transition-all whitespace-pre-wrap">
+                                    ${escapeHTML(n.content)}
                                 </div>
+                                ${n.media ? `<div class="mt-2 max-w-xs border border-slate-800 rounded overflow-hidden"><img src="${n.media}" class="max-h-32 object-contain bg-slate-950"></div>` : ''}
                             </div>
                         `).join('')}
                     </div>
@@ -285,26 +510,22 @@
         window.toggleEditorSize = function() {
             isExpanded = !isExpanded;
             if (isExpanded) {
-                mainGrid.classList.remove('grid-cols-1', 'lg:grid-cols-3');
-                mainGrid.classList.add('grid-cols-1');
+                mainGrid.classList.replace('lg:grid-cols-3', 'grid-cols-1');
                 editorPanel.classList.remove('lg:col-span-1');
                 displayPanel.classList.remove('lg:col-span-2');
                 contentInput.rows = 15;
                 resizeBtn.textContent = "[ RÉDUIRE - ]";
             } else {
-                mainGrid.classList.remove('grid-cols-1');
-                mainGrid.classList.add('grid-cols-1', 'lg:grid-cols-3');
+                mainGrid.classList.replace('grid-cols-1', 'lg:grid-cols-3');
                 editorPanel.classList.add('lg:col-span-1');
                 displayPanel.classList.add('lg:col-span-2');
                 contentInput.rows = 8;
                 resizeBtn.textContent = "[ AGRANDIR + ]";
             }
-        }
+        };
 
         function escapeHTML(str) {
-            return str.replace(/[&<>'"]/g, 
-                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-            );
+            return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
         }
 
         searchInput.addEventListener('input', displayFolders);
