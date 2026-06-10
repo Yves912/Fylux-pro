@@ -1,12 +1,3 @@
-<!-- 
-========================================================================
-APPLICATION : FYLUX-PRO // WORKSPACE
-DEVELOPER   : Fylux (Programmer / Student at IUEA)
-VERSION     : 2.0 (Mise à jour majeure)
-DATE        : June 2026
-DESCRIPTION : Custom PWA with Sketchpad, Rich Snippets, Trash System & Image Upload
-========================================================================
--->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -20,6 +11,20 @@ DESCRIPTION : Custom PWA with Sketchpad, Rich Snippets, Trash System & Image Upl
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #475569; }
         .color-scheme-dark { color-scheme: dark; }
+        
+        /* Classes de polices dynamiques */
+        .font-sans-custom { font-family: ui-sans-serif, system-ui, sans-serif; }
+        .font-serif-custom { font-family: Georgia, Cambria, serif; }
+        .font-mono-custom { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+        /* Style pour la zone éditable pour imiter un textarea */
+        [contenteditable]:empty:before {
+            content: attr(placeholder);
+            color: #475569;
+            pointer-events: none;
+            display: block;
+        }
+
         @media print {
             body * { visibility: hidden; }
             #printSection, #printSection * { visibility: visible; }
@@ -40,61 +45,70 @@ DESCRIPTION : Custom PWA with Sketchpad, Rich Snippets, Trash System & Image Upl
         }
     </script>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased">
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex flex-col antialiased transition-colors duration-300">
 
-    <!-- Zone cachée dédiée à l'impression propre en PDF -->
     <div id="printSection" class="hidden p-8 bg-white text-black"></div>
 
-    <header class="bg-slate-900 border-b border-slate-800 shadow-xl px-6 py-4">
+    <header class="bg-slate-850 border-b border-slate-700/60 shadow-lg px-6 py-4 sticky top-0 z-40 backdrop-blur-md">
         <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center space-x-3">
-                <h1 class="text-xl font-bold font-mono tracking-wider text-slate-200 select-none">
-                    [ <span class="text-cyan-500">FYLUX</span> // SYS ]
+            <div class="flex items-center space-x-6">
+                <h1 class="text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 select-none">
+                    Fylux-pro
                 </h1>
+                <nav class="flex space-x-2 bg-slate-900/60 p-1 rounded-lg border border-slate-800">
+                    <button onclick="switchTab('consigner')" id="tab-consigner" class="px-4 py-1.5 text-xs font-medium rounded-md transition-all duration-200 cursor-pointer bg-cyan-600 text-slate-950 shadow-md">
+                        <span class="lang-fr">📝 Consigner</span><span class="lang-en hidden">📝 Log Note</span>
+                    </button>
+                    <button onclick="switchTab('dossiers')" id="tab-dossiers" class="px-4 py-1.5 text-xs font-medium rounded-md transition-all duration-200 cursor-pointer text-slate-400 hover:text-slate-200">
+                        <span class="lang-fr">📁 Mes Dossiers</span><span class="lang-en hidden">📁 My Folders</span>
+                    </button>
+                </nav>
             </div>
+            
             <div class="flex items-center space-x-4">
-                <button onclick="toggleTrashModal()" class="text-xs font-mono bg-slate-950 hover:bg-slate-850 text-red-400 border border-slate-800 px-3 py-1 rounded-md transition cursor-pointer">
-                    🗑️ CORBEILLE (<span id="trashCount">0</span>)
+                <select id="langSelector" onchange="changeLanguage(this.value)" class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-300">
+                    <option value="fr">FR 🇫🇷</option>
+                    <option value="en">EN 🇬🇧</option>
+                </select>
+
+                <button onclick="toggleTrashModal()" class="text-xs font-mono bg-slate-950 hover:bg-red-950/40 text-red-400 border border-red-900/30 px-3 py-1.5 rounded-lg transition-all duration-200 cursor-pointer">
+                    🗑️ <span class="lang-fr">CORBEILLE</span><span class="lang-en hidden">TRASH</span> (<span id="trashCount">0</span>)
                 </button>
-                <span class="text-xs font-mono bg-slate-950 text-cyan-400 border border-slate-800 px-3 py-1 rounded-md tracking-wider" id="noteCount">
-                    0 COURS INDEXÉS
+                <span class="text-xs font-mono bg-slate-950 text-cyan-400 border border-slate-800 px-3 py-1.5 rounded-lg tracking-wider" id="noteCount">
+                    0 COURS
                 </span>
             </div>
         </div>
     </header>
 
-    <main class="container mx-auto flex-1 p-6 grid grid-cols-1 lg:grid-cols-3 gap-8 transition-all duration-300" id="mainGrid">
+    <main class="container mx-auto flex-1 p-6 max-w-5xl transition-all duration-300">
         
-        <!-- Éditeur (Gauche) -->
-        <section id="editorPanel" class="lg:col-span-1 bg-slate-900 p-6 rounded-xl border border-slate-800 h-fit sticky top-6 shadow-lg transition-all duration-300">
-            <div class="flex justify-between items-center mb-5 border-b border-slate-800 pb-3">
-                <h2 id="editorTitle" class="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                    <span id="editorStatusIndicator" class="w-2 h-2 rounded-full bg-cyan-500 block"></span> Consigner une note
+        <section id="page-consigner" class="block max-w-xl mx-auto bg-slate-850 p-6 rounded-2xl border border-slate-700/50 shadow-xl transition-all duration-300">
+            <div class="flex justify-between items-center mb-5 border-b border-slate-700/50 pb-3">
+                <h2 id="editorTitle" class="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                    <span id="editorStatusIndicator" class="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] block"></span> 
+                    <span class="lang-fr">Consigner une note</span><span class="lang-en hidden">Log a new lecture note</span>
                 </h2>
-                <button type="button" id="resizeBtn" onclick="toggleEditorSize()" 
-                    class="text-xs font-mono bg-slate-950 hover:bg-slate-800 text-cyan-400 border border-slate-800 px-2 py-1 rounded cursor-pointer transition">
-                    [ AGRANDIR + ]
-                </button>
             </div>
             
             <form id="noteForm" class="space-y-5">
                 <input type="hidden" id="noteIdInput">
 
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Cours / Discipline</label>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide"><span class="lang-fr">Cours / Discipline</span><span class="lang-en hidden">Course / Discipline</span></label>
                     <input type="text" id="courseInput" required placeholder="Ex: Algorithmique, Économie..." 
-                        class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-200 placeholder-slate-600 transition text-sm">
+                        class="w-full px-3 py-2.5 bg-slate-900 border border-slate-700/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-slate-200 placeholder-slate-600 transition text-sm">
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Date de la session</label>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide"><span class="lang-fr">Date de la session</span><span class="lang-en hidden">Session Date</span></label>
                         <input type="date" id="dateInput" required 
-                            class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-200 transition text-sm color-scheme-dark">
+                            class="w-full px-3 py-2.5 bg-slate-900 border border-slate-700/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-slate-200 transition text-sm color-scheme-dark">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Importance / Degré</label>
-                        <select id="degreeInput" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-200 transition text-sm color-scheme-dark">
+                        <label class="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide"><span class="lang-fr">Importance / Degré</span><span class="lang-en hidden">Priority Level</span></label>
+                        <select id="degreeInput" class="w-full px-3 py-2.5 bg-slate-900 border border-slate-700/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-slate-200 transition text-sm color-scheme-dark">
                             <option value="💡 Normal">💡 Normal</option>
                             <option value="🔥 Important">🔥 Important</option>
                             <option value="🚨 Critique">🚨 Critique</option>
@@ -102,85 +116,115 @@ DESCRIPTION : Custom PWA with Sketchpad, Rich Snippets, Trash System & Image Upl
                     </div>
                 </div>
 
-                <!-- Outils d'édition enrichie & Médias -->
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Contenu & Outils</label>
-                    <div class="flex flex-wrap gap-1 bg-slate-950 p-2 rounded-t-lg border-t border-x border-slate-800 font-mono text-xs">
-                        <button type="button" onclick="insertFormat('• ')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 rounded text-slate-300"> Listes (•) </button>
-                        <button type="button" onclick="insertFormat('> ')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 rounded text-slate-300"> Citations (&gt;) </button>
-                        <button type="button" onclick="insertFormat('✓ ')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 rounded text-slate-300"> Validé (✓) </button>
-                        <button type="button" onclick="openSketchpad()" class="px-2 py-1 bg-cyan-950 hover:bg-cyan-900 border border-cyan-800 rounded text-cyan-400"> 🎨 Dessiner </button>
-                        <label class="px-2 py-1 bg-slate-900 hover:bg-slate-800 rounded text-slate-300 cursor-pointer">
-                            📷 Image <input type="file" id="imageUpload" accept="image/*" class="hidden" onchange="handleImageUpload(this)">
-                        </label>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide"><span class="lang-fr">Contenu des explications</span><span class="lang-en hidden">Explanations Content</span></label>
+                    <div class="flex flex-col bg-slate-900 rounded-t-xl border border-slate-700/60 p-2 gap-2">
+                        
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <div class="flex items-center space-x-2">
+                                <select id="fontSelector" onchange="changeEditorFont(this.value)" class="bg-slate-800 text-xs rounded-lg px-2 py-1 text-slate-300 border border-slate-700 focus:outline-none">
+                                    <option value="font-sans-custom">Aptos (Body)</option>
+                                    <option value="font-serif-custom">Times New Roman</option>
+                                    <option value="font-mono-custom">Consolas (Terminal)</option>
+                                </select>
+                            </div>
+                            <div class="flex gap-1.5">
+                                <button type="button" onclick="openSketchpad()" class="text-xs px-2.5 py-1 bg-cyan-950 hover:bg-cyan-900 text-cyan-400 rounded-lg border border-cyan-900/50 transition cursor-pointer">🎨 Croquis</button>
+                                <label class="text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition cursor-pointer">
+                                    📷 Images <input type="file" id="imageUpload" accept="image/*" multiple class="hidden" onchange="handleMultiImageUpload(this)">
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-1 text-sm font-mono">
+                            <button type="button" onclick="execCmd('bold')" class="w-8 h-7 bg-slate-800 hover:bg-slate-700 rounded font-bold text-slate-200 transition cursor-pointer" title="Gras">B</button>
+                            <button type="button" onclick="execCmd('italic')" class="w-8 h-7 bg-slate-800 hover:bg-slate-700 rounded italic text-slate-200 transition cursor-pointer" title="Italique">I</button>
+                            <button type="button" onclick="execCmd('underline')" class="w-8 h-7 bg-slate-800 hover:bg-slate-700 rounded underline text-slate-200 transition cursor-pointer" title="Souligné">U</button>
+                            <button type="button" onclick="execCmd('strikeThrough')" class="w-8 h-7 bg-slate-800 hover:bg-slate-700 rounded line-through text-slate-400 transition cursor-pointer" title="Barré">̶S̶</button>
+                            <button type="button" onclick="execCmd('subscript')" class="w-8 h-7 bg-slate-800 hover:bg-slate-700 rounded text-xs text-cyan-400 transition cursor-pointer" title="Indice">X₂</button>
+                            <button type="button" onclick="execCmd('superscript')" class="w-8 h-7 bg-slate-800 hover:bg-slate-700 rounded text-xs text-cyan-400 transition cursor-pointer" title="Exposant">X²</button>
+                            
+                            <div class="h-4 w-[1px] bg-slate-800 mx-1"></div>
+                            
+                            <button type="button" onclick="execCmd('hiliteColor', '#eab308')" class="px-2 h-7 bg-amber-950/60 hover:bg-amber-900 text-amber-400 rounded border border-amber-900/40 text-xs transition cursor-pointer font-sans" title="Surligner">✨ Highlight</button>
+                            <button type="button" onclick="execCmd('insertUnorderedList')" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 transition cursor-pointer" title="Liste à puces">•</button>
+                        </div>
                     </div>
-                    <textarea id="contentInput" required rows="8" placeholder="Écrivez ici vos explications clés..." 
-                        class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-b-lg focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-200 placeholder-slate-600 transition text-sm resize-y font-sans leading-relaxed min-h-[160px]"></textarea>
+                    
+                    <div id="contentInput" contenteditable="true" placeholder="Écrivez ici vos explications clés..."
+                        class="w-full px-4 py-3 bg-slate-900 border-b border-x border-slate-700/60 rounded-b-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-slate-200 transition text-sm leading-relaxed min-h-[180px] font-sans-custom overflow-y-auto"></div>
                 </div>
 
-                <!-- Zone de prévisualisation des médias rattachés -->
                 <div id="mediaPreviewArea" class="hidden space-y-2">
-                    <span class="block text-[11px] font-mono text-slate-500">MÉDIA ATTACHÉ :</span>
-                    <div class="relative w-full max-h-40 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden flex justify-center items-center">
-                        <img id="attachedImage" src="" class="max-h-40 object-contain">
-                        <button type="button" onclick="removeAttachedMedia()" class="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 text-xs w-5 h-5 flex items-center justify-center font-bold">X</button>
-                    </div>
+                    <span class="block text-[11px] font-mono text-slate-500 uppercase tracking-wider"><span class="lang-fr">Images rattachées à la session</span><span class="lang-en hidden">Attached images for this session</span> :</span>
+                    <div id="imagesPreviewContainer" class="grid grid-cols-3 gap-2 bg-slate-900 p-2 rounded-xl border border-slate-800"></div>
                 </div>
 
-                <div class="flex gap-3">
+                <div class="flex gap-3 pt-2">
                     <button type="submit" id="submitBtn"
-                        class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-semibold py-2.5 px-4 rounded-lg transition duration-150 shadow-md cursor-pointer text-center text-sm tracking-wide">
-                        Enregistrer
+                        class="flex-1 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-slate-950 font-bold py-2.5 px-4 rounded-xl transition-all duration-200 shadow-lg shadow-cyan-500/10 active:scale-[0.99] cursor-pointer text-center text-sm tracking-wide">
+                        <span class="lang-fr">Enregistrer</span><span class="lang-en hidden">Save Note</span>
                     </button>
-                    <button type="button" id="cancelEditBtn" onclick="resetEditor()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 px-3 rounded-lg text-sm transition cursor-pointer">
-                        Annuler
+                    <button type="button" id="cancelEditBtn" onclick="resetEditor()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 px-4 rounded-xl text-sm transition unique-btn cursor-pointer">
+                        <span class="lang-fr">Annuler</span><span class="lang-en hidden">Cancel</span>
                     </button>
                 </div>
             </form>
         </section>
 
-        <!-- Explorateur & Liste (Droite) -->
-        <section id="displayPanel" class="lg:col-span-2 flex flex-col space-y-5 transition-all duration-300">
-            <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md flex gap-3">
+        <section id="page-dossiers" class="hidden space-y-5 transition-all duration-300">
+            <div class="bg-slate-850 p-4 rounded-2xl border border-slate-700/50 shadow-md">
                 <input type="text" id="searchInput" placeholder="Rechercher un mot-clé dans les dossiers ou les cours..." 
-                    class="w-full pl-3 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-500 text-slate-200 text-sm placeholder-slate-600">
+                    class="w-full pl-4 pr-4 py-2.5 bg-slate-900 border border-slate-700/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-slate-200 text-sm placeholder-slate-600">
             </div>
 
             <div id="foldersContainer" class="space-y-4"></div>
         </section>
+
     </main>
 
-    <!-- MODAL : Espace Croquis (Dessin) -->
-    <div id="sketchpadModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl w-full max-w-lg space-y-4 shadow-2xl">
-            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-                <h3 class="text-sm font-mono text-cyan-400">🎨 ZONE DE CROQUIS</h3>
-                <button onclick="closeSketchpad()" class="text-slate-500 hover:text-slate-300 font-bold">X</button>
+    <div id="sketchpadModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+        <div class="bg-slate-850 border border-slate-700 p-5 rounded-2xl w-full max-w-lg space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                <h3 class="text-sm font-mono text-cyan-400">🎨 <span class="lang-fr">ZONE DE CROQUIS</span><span class="lang-en hidden">SKETCHPAD WORKSPACE</span></h3>
+                <button onclick="closeSketchpad()" class="text-slate-500 hover:text-slate-300 font-bold cursor-pointer">✕</button>
             </div>
-            <canvas id="sketchCanvas" width="450" height="300" class="w-full bg-slate-950 border border-slate-800 rounded-lg touch-none cursor-crosshair"></canvas>
+            <canvas id="sketchCanvas" width="450" height="300" class="w-full bg-slate-900 border border-slate-700 rounded-xl touch-none cursor-crosshair"></canvas>
             <div class="flex gap-2 justify-end text-xs font-mono">
-                <button onclick="clearCanvas()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded hover:bg-slate-700">Effacer</button>
-                <button onclick="saveCanvasToNote()" class="px-3 py-1.5 bg-cyan-600 text-slate-950 rounded font-bold hover:bg-cyan-500">Injecter au cours</button>
+                <button onclick="clearCanvas()" class="px-3 py-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 cursor-pointer">Effacer</button>
+                <button onclick="saveCanvasToNote()" class="px-4 py-2 bg-cyan-600 text-slate-950 rounded-lg font-bold hover:bg-cyan-500 cursor-pointer">Injecter</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL : Gestion de la Corbeille -->
-    <div id="trashModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-        <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl w-full max-w-xl space-y-4 shadow-2xl">
-            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-                <h3 class="text-sm font-mono text-red-400">🗑️ ARCHIVES DE LA CORBEILLE</h3>
-                <button onclick="toggleTrashModal()" class="text-slate-500 hover:text-slate-300 font-bold">X</button>
+    <div id="trashModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+        <div class="bg-slate-850 border border-slate-700 p-5 rounded-2xl w-full max-w-xl space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                <h3 class="text-sm font-mono text-red-400">🗑️ <span class="lang-fr">CORBEILLE SÉCURISÉE</span><span class="lang-en hidden">SECURE TRASH BIN</span></h3>
+                <button onclick="toggleTrashModal()" class="text-slate-500 hover:text-slate-300 font-bold cursor-pointer">✕</button>
             </div>
-            <div id="trashContainer" class="max-h-60 overflow-y-auto space-y-2 divide-y divide-slate-800/40 pr-1"></div>
-            <div class="flex justify-between items-center text-xs font-mono pt-2 border-t border-slate-800">
-                <button onclick="emptyTrashPermanently()" class="text-red-400 hover:underline">Tout supprimer définitivement</button>
-                <button onclick="toggleTrashModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded">Fermer</button>
+            <div id="trashContainer" class="max-h-60 overflow-y-auto space-y-2 divide-y divide-slate-800/40 pr-1 text-xs font-mono"></div>
+            <div class="flex justify-between items-center text-xs font-mono pt-3 border-t border-slate-700">
+                <button onclick="emptyTrashPermanently()" class="text-red-400 hover:underline cursor-pointer">Tout purger définitivement</button>
+                <button onclick="toggleTrashModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg">Fermer</button>
             </div>
         </div>
     </div>
 
-    <footer class="bg-slate-900 border-t border-slate-800 text-slate-500 text-center py-4 text-xs font-mono tracking-wider mt-8">
+    <div id="iosInstallPrompt" class="hidden fixed bottom-6 left-6 right-6 bg-slate-850 border border-cyan-500/30 p-4 rounded-xl shadow-2xl z-50 max-w-md mx-auto">
+        <div class="flex items-start gap-3 text-sm">
+            <div class="bg-cyan-950 p-2 rounded-lg text-cyan-400 text-xl shrink-0">📲</div>
+            <div class="flex-1">
+                <p class="text-slate-200 font-bold">Installez Fylux-pro sur votre iPhone :</p>
+                <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Appuyez sur le bouton <span class="bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700 text-cyan-400 font-mono font-bold">Partager ↑</span> au bas de l'écran dans Safari, puis sélectionnez l'option <span class="text-cyan-400 font-bold">"Sur l'écran d'accueil"</span>.
+                </p>
+            </div>
+            <button onclick="document.getElementById('iosInstallPrompt').remove()" class="text-slate-500 hover:text-slate-300 font-bold px-1 cursor-pointer">✕</button>
+        </div>
+    </div>
+
+    <footer class="bg-slate-850 border-t border-slate-800 text-slate-500 text-center py-4 text-xs font-mono tracking-wider mt-8">
         LOCAL_STORAGE_MODE // DESIGNED & DEVELOPED BY <span class="text-cyan-500 font-bold">FYLUX...Yves-Matimbia</span>
     </footer>
 
@@ -199,57 +243,110 @@ DESCRIPTION : Custom PWA with Sketchpad, Rich Snippets, Trash System & Image Upl
         const cancelEditBtn = document.getElementById('cancelEditBtn');
         const editorTitle = document.getElementById('editorTitle');
         const mediaPreviewArea = document.getElementById('mediaPreviewArea');
-        const attachedImage = document.getElementById('attachedImage');
+        const imagesPreviewContainer = document.getElementById('imagesPreviewContainer');
+        const langSelector = document.getElementById('langSelector');
 
-        const mainGrid = document.getElementById('mainGrid');
-        const editorPanel = document.getElementById('editorPanel');
-        const displayPanel = document.getElementById('displayPanel');
-        const resizeBtn = document.getElementById('resizeBtn');
-
-        // Canvas Setup
         const canvas = document.getElementById('sketchCanvas');
         const ctx = canvas.getContext('2d');
         let drawing = false;
 
         let notes = JSON.parse(localStorage.getItem('uni_notes')) || [];
         let trash = JSON.parse(localStorage.getItem('uni_trash')) || [];
-        let currentMediaBase64 = "";
-        let isExpanded = false;
+        let currentMediaArray = []; 
+        let currentLang = localStorage.getItem('fylux_lang') || 'fr';
 
         dateInput.value = new Date().toISOString().split('T')[0];
+        langSelector.value = currentLang;
+        changeLanguage(currentLang);
 
-        // Format Insertion Engine
-        window.insertFormat = function(syntax) {
-            const start = contentInput.selectionStart;
-            const end = contentInput.selectionEnd;
-            const currentText = contentInput.value;
-            contentInput.value = currentText.substring(0, start) + syntax + currentText.substring(end);
-            contentInput.focus();
-            contentInput.setSelectionRange(start + syntax.length, start + syntax.length);
-        };
+        window.switchTab = function(tabName) {
+            const btnConsigner = document.getElementById('tab-consigner');
+            const btnDossiers = document.getElementById('tab-dossiers');
+            const pageConsigner = document.getElementById('page-consigner');
+            const pageDossiers = document.getElementById('page-dossiers');
 
-        // Image Attachment Converter
-        window.handleImageUpload = function(input) {
-            const file = input.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    currentMediaBase64 = e.target.result;
-                    attachedImage.src = currentMediaBase64;
-                    mediaPreviewArea.classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
+            if(tabName === 'consigner') {
+                pageConsigner.classList.remove('hidden');
+                pageDossiers.classList.add('hidden');
+                btnConsigner.className = "px-4 py-1.5 text-xs font-medium rounded-md transition-all duration-200 bg-cyan-600 text-slate-950 shadow-md cursor-pointer";
+                btnDossiers.className = "px-4 py-1.5 text-xs font-medium rounded-md transition-all duration-200 text-slate-400 hover:text-slate-200 cursor-pointer";
+            } else {
+                pageConsigner.classList.add('hidden');
+                pageDossiers.classList.remove('hidden');
+                btnDossiers.className = "px-4 py-1.5 text-xs font-medium rounded-md transition-all duration-200 bg-cyan-600 text-slate-950 shadow-md cursor-pointer";
+                btnConsigner.className = "px-4 py-1.5 text-xs font-medium rounded-md transition-all duration-200 text-slate-400 hover:text-slate-200 cursor-pointer";
+                displayFolders();
             }
         };
 
-        window.removeAttachedMedia = function() {
-            currentMediaBase64 = "";
-            attachedImage.src = "";
-            mediaPreviewArea.classList.add('hidden');
-            document.getElementById('imageUpload').value = "";
+        // Moteur de commande WYSIWYG natif (Applique le style au texte sélectionné directement)
+        window.execCmd = function(command, value = null) {
+            document.execCommand(command, false, value);
+            contentInput.focus();
         };
 
-        // Canvas Mechanics
+        window.changeEditorFont = function(fontClass) {
+            contentInput.className = `w-full px-4 py-3 bg-slate-900 border-b border-x border-slate-700/60 rounded-b-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 text-slate-200 transition text-sm leading-relaxed min-h-[180px] overflow-y-auto ${fontClass}`;
+        };
+
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('fylux_lang', lang);
+            
+            const frElements = document.querySelectorAll('.lang-fr');
+            const enElements = document.querySelectorAll('.lang-en');
+
+            if(lang === 'en') {
+                frElements.forEach(el => el.classList.add('hidden'));
+                enElements.forEach(el => el.classList.remove('hidden'));
+                courseInput.placeholder = "Ex: Algorithms, Economics...";
+                searchInput.placeholder = "Search keyword in data modules...";
+                contentInput.setAttribute('placeholder', "Write core concepts here...");
+            } else {
+                frElements.forEach(el => el.classList.remove('hidden'));
+                enElements.forEach(el => el.classList.add('hidden'));
+                courseInput.placeholder = "Ex: Algorithmique, Économie...";
+                searchInput.placeholder = "Rechercher un mot-clé dans les dossiers...";
+                contentInput.setAttribute('placeholder', "Écrivez ici vos explications clés...");
+            }
+            displayFolders();
+        }
+
+        window.handleMultiImageUpload = function(input) {
+            const files = Array.from(input.files);
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentMediaArray.push(e.target.result);
+                    renderMediaPreviews();
+                };
+                reader.readAsDataURL(file);
+            });
+        };
+
+        function renderMediaPreviews() {
+            imagesPreviewContainer.innerHTML = "";
+            if(currentMediaArray.length === 0) {
+                mediaPreviewArea.classList.add('hidden');
+                return;
+            }
+            mediaPreviewArea.classList.remove('hidden');
+            currentMediaArray.forEach((imgBase64, index) => {
+                const wrap = document.createElement('div');
+                wrap.className = "relative group border border-slate-700 rounded-lg overflow-hidden bg-slate-950 aspect-video";
+                wrap.innerHTML = `
+                    <img src="${imgBase64}" class="w-full h-full object-cover">
+                    <button type="button" onclick="removeImageFromBuffer(${index})" class="absolute top-1 right-1 bg-red-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center font-bold opacity-80 hover:opacity-100 cursor-pointer">X</button>
+                `;
+                imagesPreviewContainer.appendChild(wrap);
+            });
+        }
+
+        window.removeImageFromBuffer = function(index) {
+            currentMediaArray.splice(index, 1);
+            renderMediaPreviews();
+        };
+
         window.openSketchpad = function() {
             document.getElementById('sketchpadModal').classList.remove('hidden');
             clearCanvas();
@@ -258,123 +355,116 @@ DESCRIPTION : Custom PWA with Sketchpad, Rich Snippets, Trash System & Image Upl
             document.getElementById('sketchpadModal').classList.add('hidden');
         };
         window.clearCanvas = function() {
-            ctx.fillStyle = "#020617";
+            ctx.fillStyle = "#0f172a";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.strokeStyle = "#22d3ee";
+            ctx.strokeStyle = "#38bdf8";
             ctx.lineWidth = 3;
             ctx.lineCap = "round";
         };
-
-        function getCanvasMousePos(e) {
+        function getCanvasPos(e) {
             const rect = canvas.getBoundingClientRect();
-            // Prise en compte de la mise à l'échelle CSS pour le touch tactile
             return {
                 x: (e.clientX || e.touches[0].clientX) - rect.left,
                 y: (e.clientY || e.touches[0].clientY) - rect.top
             };
         }
-
-        canvas.addEventListener('mousedown', (e) => { drawing = true; ctx.beginPath(); const p = getCanvasMousePos(e); ctx.moveTo(p.x, p.y); });
-        canvas.addEventListener('mousemove', (e) => { if (!drawing) return; const p = getCanvasMousePos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); });
+        canvas.addEventListener('mousedown', (e) => { drawing = true; ctx.beginPath(); const p = getCanvasPos(e); ctx.moveTo(p.x, p.y); });
+        canvas.addEventListener('mousemove', (e) => { if (!drawing) return; const p = getCanvasPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); });
         canvas.addEventListener('mouseup', () => drawing = false);
-        canvas.addEventListener('touchstart', (e) => { drawing = true; ctx.beginPath(); const p = getCanvasMousePos(e); ctx.moveTo(p.x, p.y); e.preventDefault(); });
-        canvas.addEventListener('touchmove', (e) => { if (!drawing) return; const p = getCanvasMousePos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); });
+        canvas.addEventListener('touchstart', (e) => { drawing = true; ctx.beginPath(); const p = getCanvasPos(e); ctx.moveTo(p.x, p.y); e.preventDefault(); });
+        canvas.addEventListener('touchmove', (e) => { if (!drawing) return; const p = getCanvasPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); });
         canvas.addEventListener('touchend', () => drawing = false);
 
         window.saveCanvasToNote = function() {
-            currentMediaBase64 = canvas.toDataURL();
-            attachedImage.src = currentMediaBase64;
-            mediaPreviewArea.classList.remove('hidden');
+            currentMediaArray.push(canvas.toDataURL());
+            renderMediaPreviews();
             closeSketchpad();
         };
 
-        // Form operations
         noteForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const noteId = noteIdInput.value;
             const courseValue = courseInput.value.trim();
             const dateValue = dateInput.value;
             const degreeValue = degreeInput.value;
-            const contentValue = contentInput.value.trim();
+            
+            // On récupère le innerHTML pour garder la structure riche visuelle
+            const contentValue = contentInput.innerHTML.trim(); 
 
             if (noteId) {
-                notes = notes.map(note => {
-                    if (note.id == noteId) {
-                        return { ...note, course: courseValue, date: dateValue, degree: degreeValue, content: contentValue, media: currentMediaBase64 };
+                notes = notes.map(n => {
+                    if (n.id == noteId) {
+                        return { ...n, course: courseValue, date: dateValue, degree: degreeValue, content: contentValue, mediaList: [...currentMediaArray] };
                     }
-                    return note;
+                    return n;
                 });
             } else {
                 notes.push({
                     id: Date.now(),
+                    createdAt: new Date().toISOString(), 
                     course: courseValue,
                     date: dateValue,
                     degree: degreeValue,
                     content: contentValue,
-                    media: currentMediaBase64
+                    mediaList: [...currentMediaArray]
                 });
             }
 
             saveNotes();
             resetEditor();
-            displayFolders();
-            if(isExpanded) toggleEditorSize();
+            switchTab('dossiers');
         });
 
         function saveNotes() {
             localStorage.setItem('uni_notes', JSON.stringify(notes));
             localStorage.setItem('uni_trash', JSON.stringify(trash));
-            trashCount.textContent = trash.length;
+            displayFolders();
         }
 
         window.editNote = function(id, event) {
-            event.stopPropagation(); 
+            event.stopPropagation();
             const target = notes.find(n => n.id == id);
             if (!target) return;
+
+            switchTab('consigner');
 
             noteIdInput.value = target.id;
             courseInput.value = target.course;
             dateInput.value = target.date;
             degreeInput.value = target.degree || "💡 Normal";
-            contentInput.value = target.content;
             
-            if(target.media) {
-                currentMediaBase64 = target.media;
-                attachedImage.src = currentMediaBase64;
-                mediaPreviewArea.classList.remove('hidden');
-            } else {
-                removeAttachedMedia();
-            }
+            // Injection propre du HTML pour l'édition visuelle directe
+            contentInput.innerHTML = target.content;
+            
+            currentMediaArray = target.mediaList ? [...target.mediaList] : (target.media ? [target.media] : []);
+            renderMediaPreviews();
 
-            editorTitle.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 block"></span> Mode Édition`;
-            submitBtn.textContent = "Mettre à jour la note";
-            submitBtn.classList.replace('bg-cyan-600', 'bg-amber-600');
-            submitBtn.classList.replace('hover:bg-cyan-500', 'hover:bg-amber-500');
+            editorTitle.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_#f59e0b] block"></span> ${currentLang === 'fr' ? 'Mode Édition' : 'Edit Mode'}`;
+            submitBtn.textContent = currentLang === 'fr' ? "Mettre à jour" : "Update Note";
+            submitBtn.className = "flex-1 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-bold py-2.5 px-4 rounded-xl transition-all duration-200 shadow-lg cursor-pointer text-center text-sm tracking-wide";
             cancelEditBtn.classList.remove('hidden');
-            contentInput.focus();
         };
 
         window.resetEditor = function() {
             noteForm.reset();
             noteIdInput.value = "";
             dateInput.value = new Date().toISOString().split('T')[0];
-            removeAttachedMedia();
-            editorTitle.innerHTML = `<span class="w-2 h-2 rounded-full bg-cyan-500 block"></span> Consigner une note`;
-            submitBtn.textContent = "Enregistrer";
-            submitBtn.classList.replace('bg-amber-600', 'bg-cyan-600');
-            submitBtn.classList.replace('hover:bg-amber-500', 'hover:bg-cyan-500');
+            contentInput.innerHTML = ""; // Clear de la zone
+            currentMediaArray = [];
+            renderMediaPreviews();
+            
+            editorTitle.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] block"></span> ${currentLang === 'fr' ? 'Consigner une note' : 'Log a new lecture note'}`;
+            submitBtn.textContent = currentLang === 'fr' ? "Enregistrer" : "Save Note";
+            submitBtn.className = "flex-1 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-slate-950 font-bold py-2.5 px-4 rounded-xl transition-all duration-200 shadow-lg cursor-pointer text-center text-sm tracking-wide";
             cancelEditBtn.classList.add('hidden');
         };
 
-        // Trash System Engine
         window.deleteNote = function(id, event) {
             event.stopPropagation();
-            const noteIndex = notes.findIndex(n => n.id === id);
-            if(noteIndex > -1) {
-                const targetNote = notes.splice(noteIndex, 1)[0];
-                trash.push(targetNote);
+            const idx = notes.findIndex(n => n.id === id);
+            if(idx > -1) {
+                trash.push(notes.splice(idx, 1)[0]);
                 saveNotes();
-                displayFolders();
                 if(noteIdInput.value == id) resetEditor();
             }
         };
@@ -389,143 +479,152 @@ DESCRIPTION : Custom PWA with Sketchpad, Rich Snippets, Trash System & Image Upl
             const container = document.getElementById('trashContainer');
             container.innerHTML = "";
             if(trash.length === 0) {
-                container.innerHTML = `<div class="text-slate-500 font-mono text-xs text-center py-6">La corbeille est vide.</div>`;
+                container.innerHTML = `<div class="text-slate-500 text-center py-4">La corbeille est vide.</div>`;
                 return;
             }
             trash.forEach(item => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = "py-2 flex justify-between items-center text-xs font-mono";
-                itemDiv.innerHTML = `
-                    <div class="truncate max-w-[350px]">
-                        <span class="text-red-400">[${escapeHTML(item.course)}]</span> ${escapeHTML(item.content)}
+                const d = document.createElement('div');
+                d.className = "py-2.5 flex justify-between items-center border-b border-slate-800/60";
+                d.innerHTML = `
+                    <div class="truncate max-w-[70%] text-slate-400">
+                        <strong class="text-red-400 font-bold">[${escapeHTML(item.course)}]</strong> ${item.content}
                     </div>
-                    <button onclick="restoreNote(${item.id})" class="text-cyan-400 hover:underline shrink-0 ml-2">[RESTAURER]</button>
+                    <button onclick="restoreNote(${item.id})" class="text-cyan-400 hover:text-cyan-300 font-medium cursor-pointer">[RESTAURER]</button>
                 `;
-                container.appendChild(itemDiv);
+                container.appendChild(d);
             });
         }
 
         window.restoreNote = function(id) {
             const idx = trash.findIndex(n => n.id === id);
             if(idx > -1) {
-                const revived = trash.splice(idx, 1)[0];
-                notes.push(revived);
+                notes.push(trash.splice(idx, 1)[0]);
                 saveNotes();
-                displayFolders();
                 displayTrash();
             }
         };
 
         window.emptyTrashPermanently = function() {
-            if(confirm("Vider définitivement la corbeille ? Cette action est irréversible.")) {
+            if(confirm("Purger la corbeille ?")) {
                 trash = [];
                 saveNotes();
                 displayTrash();
             }
         };
 
-        // Print to PDF
         window.printPDF = function(id, event) {
             event.stopPropagation();
             const note = notes.find(n => n.id == id);
             if (!note) return;
 
             const printSection = document.getElementById('printSection');
+            let imagesHtml = "";
+            const mediaList = note.mediaList ? note.mediaList : (note.media ? [note.media] : []);
+            mediaList.forEach(img => {
+                imagesHtml += `<img src="${img}" style="max-width: 45%; max-height:200px; display:inline-block; margin:10px; border: 1px solid #ccc;" />`;
+            });
+
             printSection.innerHTML = `
-                <h1 style="font-size: 24px; margin-bottom: 5px; font-weight: bold; font-family: monospace;">[ FYLUX-PRO // ARCHIVE ]</h1>
-                <p style="font-size: 14px; color: #555; margin-bottom: 20px;">Cours : ${note.course} | Date : ${note.date} | Degré : ${note.degree || 'Normal'}</p>
-                <hr style="margin-bottom: 20px;" />
-                <div style="font-size: 16px; line-height: 1.6; white-space: pre-wrap;">${note.content}</div>
-                ${note.media ? `<br><img src="${note.media}" style="max-width: 100%; border: 1px solid #ccc; margin-top:20px;" />` : ''}
+                <h1 style="font-size: 26px; font-weight: bold; font-family: monospace; margin-bottom: 5px;">[ FYLUX-PRO // ARCHIVE ]</h1>
+                <p style="font-size: 13px; color: #444; margin-bottom: 15px;"><b>Cours :</b> ${note.course.toUpperCase()} | <b>Date :</b> ${note.date}</p>
+                <hr style="border: 0; border-top: 1px solid #000; margin-bottom: 20px;" />
+                <div style="font-size: 15px; line-height: 1.6; white-space: pre-wrap; font-family: sans-serif;">${note.content}</div>
+                <div style="margin-top: 30px; text-align: center;">${imagesHtml}</div>
             `;
             window.print();
         };
 
-        function formatDate(dateString) {
-            return new Date(dateString).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' });
+        function formatFriendlyDate(isoString) {
+            if(!isoString) return "";
+            return new Date(isoString).toLocaleDateString(currentLang === 'fr' ? 'fr-FR' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
         }
 
-        // Folder Render Engine
         function displayFolders() {
             const searchTerm = searchInput.value.toLowerCase();
             const filtered = notes.filter(n => n.course.toLowerCase().includes(searchTerm) || n.content.toLowerCase().includes(searchTerm));
-            const grouped = {};
             
+            const grouped = {};
             filtered.forEach(n => {
                 if (!grouped[n.course]) grouped[n.course] = [];
                 grouped[n.course].push(n);
             });
 
             const uniqueCount = Object.keys(grouped).length;
-            noteCount.textContent = `${uniqueCount} COURS INDEXÉ${uniqueCount > 1 ? 'S' : ''}`;
+            noteCount.textContent = `${uniqueCount} MODULE${uniqueCount > 1 ? 'S' : ''}`;
             trashCount.textContent = trash.length;
             foldersContainer.innerHTML = '';
 
             if (uniqueCount === 0) {
-                foldersContainer.innerHTML = `<div class="bg-slate-900 p-12 text-center rounded-xl border border-dashed border-slate-800 text-slate-500 text-sm">Aucun dossier ou cours trouvé.</div>`;
+                foldersContainer.innerHTML = `<div class="bg-slate-850 p-12 text-center rounded-2xl border border-dashed border-slate-700/60 text-slate-500 text-sm">${currentLang === 'fr' ? 'Aucun dossier de cours trouvé.' : 'No data modules found.'}</div>`;
                 return;
             }
 
             for (const course in grouped) {
                 const courseNotes = grouped[course].sort((a, b) => new Date(b.date) - new Date(a.date));
                 const folderElement = document.createElement('div');
-                folderElement.className = "bg-slate-900 rounded-xl border border-slate-800 shadow-md overflow-hidden";
+                folderElement.className = "bg-slate-850 rounded-2xl border border-slate-700/40 shadow-md overflow-hidden transition-all duration-200";
                 
                 folderElement.innerHTML = `
-                    <div onclick="this.nextElementSibling.classList.toggle('hidden')" class="bg-slate-900 hover:bg-slate-850 p-4 flex justify-between items-center cursor-pointer select-none transition border-b border-slate-800/50">
+                    <div onclick="this.nextElementSibling.classList.toggle('hidden')" class="bg-slate-850 hover:bg-slate-800/60 p-4 flex justify-between items-center cursor-pointer select-none transition border-b border-slate-700/40">
                         <div class="flex items-center space-x-3">
-                            <span class="text-amber-500 font-bold text-lg">📁</span>
-                            <span class="font-medium text-slate-200 tracking-wide">${escapeHTML(course)}</span>
+                            <span class="text-amber-500 text-xl font-bold">📁</span>
+                            <span class="font-extrabold text-slate-100 tracking-wide text-sm uppercase">${escapeHTML(course)}</span>
                         </div>
-                        <span class="text-xs font-mono bg-slate-950 text-slate-400 px-2 py-0.5 rounded-full border border-slate-800">
-                            ${courseNotes.length} session(s)
+                        <span class="text-xs font-mono bg-slate-900 text-slate-400 px-2.5 py-1 rounded-full border border-slate-800">
+                            ${courseNotes.length} Session(s)
                         </span>
                     </div>
                     
-                    <div class="hidden bg-slate-950/40 divide-y divide-slate-900">
-                        ${courseNotes.map(n => `
-                            <div class="p-4 hover:bg-slate-900/50 transition flex flex-col space-y-2">
+                    <div class="hidden bg-slate-900/30 divide-y divide-slate-800/60">
+                        ${courseNotes.map(n => {
+                            const mediaList = n.mediaList ? n.mediaList : (n.media ? [n.media] : []);
+                            return `
+                            <div class="p-4 hover:bg-slate-800/20 transition flex flex-col space-y-2.5">
                                 <div class="flex justify-between items-center text-xs">
-                                    <div class="text-cyan-400 font-mono font-medium flex items-center gap-1.5">
-                                        🗓️ ${formatDate(n.date)} <span class="text-[11px] text-slate-500">(${n.degree || '💡 Normal'})</span>
+                                    <div class="text-cyan-400 font-mono font-bold flex items-center gap-1.5">
+                                        🗓️ ${formatFriendlyDate(n.createdAt || n.id)} 
+                                        <span class="text-[10px] text-slate-500 font-normal">(${n.degree || '💡 Normal'})</span>
                                     </div>
                                     <div class="flex space-x-3 font-mono text-[11px]">
-                                        <button onclick="printPDF(${n.id}, event)" class="text-cyan-500 hover:text-cyan-400 transition cursor-pointer font-medium">[PDF]</button>
-                                        <button onclick="editNote(${n.id}, event)" class="text-slate-400 hover:text-amber-400 transition cursor-pointer font-medium">[ÉDITER]</button>
-                                        <button onclick="deleteNote(${n.id}, event)" class="text-slate-500 hover:text-red-400 transition cursor-pointer font-medium">[EFFACER]</button>
+                                        <button onclick="printPDF(${n.id}, event)" class="text-cyan-500 hover:text-cyan-400 transition cursor-pointer font-semibold">[PDF]</button>
+                                        <button onclick="editNote(${n.id}, event)" class="text-slate-400 hover:text-amber-400 transition cursor-pointer font-semibold">[ÉDITER]</button>
+                                        <button onclick="deleteNote(${n.id}, event)" class="text-slate-500 hover:text-red-400 transition cursor-pointer font-semibold">[EFFACER]</button>
                                     </div>
                                 </div>
-                                <div onclick="this.classList.toggle('line-clamp-2')" class="text-sm text-slate-400 font-sans leading-relaxed cursor-pointer line-clamp-2 transition-all whitespace-pre-wrap">
-                                    ${escapeHTML(n.content)}
+                                <div onclick="this.classList.toggle('line-clamp-3')" class="text-sm text-slate-300 leading-relaxed cursor-pointer line-clamp-3 transition-all whitespace-pre-wrap font-sans">
+                                    ${n.content}
                                 </div>
-                                ${n.media ? `<div class="mt-2 max-w-xs border border-slate-800 rounded overflow-hidden"><img src="${n.media}" class="max-h-32 object-contain bg-slate-950"></div>` : ''}
+                                ${mediaList.length > 0 ? `
+                                    <div class="flex flex-wrap gap-2 mt-1">
+                                        ${mediaList.map(img => `
+                                            <div class="max-w-[120px] max-h-[80px] border border-slate-800 rounded-lg overflow-hidden bg-slate-950">
+                                                <img src="${img}" class="w-full h-full object-cover cursor-zoom-in" onclick="event.stopPropagation(); window.open('${img}')">
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
                             </div>
-                        `).join('')}
+                        `}).join('')}
                     </div>
                 `;
                 foldersContainer.appendChild(folderElement);
             }
         }
 
-        window.toggleEditorSize = function() {
-            isExpanded = !isExpanded;
-            if (isExpanded) {
-                mainGrid.classList.replace('lg:grid-cols-3', 'grid-cols-1');
-                editorPanel.classList.remove('lg:col-span-1');
-                displayPanel.classList.remove('lg:col-span-2');
-                contentInput.rows = 15;
-                resizeBtn.textContent = "[ RÉDUIRE - ]";
-            } else {
-                mainGrid.classList.replace('grid-cols-1', 'lg:grid-cols-3');
-                editorPanel.classList.add('lg:col-span-1');
-                displayPanel.classList.add('lg:col-span-2');
-                contentInput.rows = 8;
-                resizeBtn.textContent = "[ AGRANDIR + ]";
-            }
-        };
-
         function escapeHTML(str) {
             return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+        }
+
+        function isIosDevice() {
+            return /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+        }
+        function isAppStandalone() {
+            return ('standalone' in window.navigator) && (window.navigator.standalone);
+        }
+        if (isIosDevice() && !isAppStandalone()) {
+            setTimeout(() => {
+                document.getElementById('iosInstallPrompt').classList.remove('hidden');
+            }, 2500);
         }
 
         searchInput.addEventListener('input', displayFolders);
