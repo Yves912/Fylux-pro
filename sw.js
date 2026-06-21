@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fylux-cache-v2.1';
+const CACHE_NAME = 'fylux-cache-v3.0';
 const ASSETS = [
   './index.html',
   './manifest.json',
