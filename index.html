@@ -81,15 +81,6 @@
         }
     </script>
 </head>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-6LH61KY7MM"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-6LH61KY7MM');
-</script>
 <body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex flex-col antialiased transition-colors duration-300">
 
     <div id="printSection" class="hidden p-8 bg-white text-black"></div>
@@ -145,6 +136,14 @@
                             <span class="lang-fr">Consigner une note</span><span class="lang-en hidden">Log a new lecture note</span>
                         </h2>
                         <div class="flex gap-3">
+                            <!-- Nouveaux boutons pour la gestion locale des fichiers sur PC -->
+                            <button type="button" onclick="ouvrirFichierManuel()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2 px-4 rounded-xl text-xs transition cursor-pointer">
+                                📂 <span class="lang-fr">Ouvrir fichier</span><span class="lang-en hidden">Open File</span>
+                            </button>
+                            <button type="button" onclick="declencherSauvegardeLocale()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2 px-4 rounded-xl text-xs transition cursor-pointer">
+                                💾 <span class="lang-fr">Enregistrer sous...</span><span class="lang-en hidden">Save as...</span>
+                            </button>
+                            <!-- Bouton existant pour l'enregistrement interne -->
                             <button type="submit" id="submitBtn" class="bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-slate-950 font-bold py-2 px-6 rounded-xl transition shadow-lg cursor-pointer text-xs uppercase">
                                 <span class="lang-fr">Enregistrer</span><span class="lang-en hidden">Save</span>
                             </button>
@@ -354,7 +353,7 @@
                 contentInput.setAttribute('placeholder', "Start typing your notes...");
             } else {
                 fr.forEach(e => e.classList.remove('hidden')); en.forEach(e => e.classList.add('hidden'));
-                courseInput.placeholder = "Ex: Algorithmique, Économie..."; searchInput.placeholder = "Rechercher...";
+                courseInput.placeholder = "Ex: Algorithmique, Économie... "; searchInput.placeholder = "Rechercher...";
                 contentInput.setAttribute('placeholder', "Commencez à rédiger vos explications ici...");
             }
             displayFolders();
@@ -462,6 +461,141 @@
         function escapeHTML(s) { return s.replace(/[&<>'"]/g, t => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[t] || t)); }
         if (/iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase()) && !navigator.standalone) setTimeout(() => document.getElementById('iosInstallPrompt').classList.remove('hidden'), 3000);
         searchInput.oninput = displayFolders; displayFolders();
+
+
+        // =========================================================================
+        // NOUVELLE LOGIQUE : SYSTEME DE FICHIERS PC (SAUVEGARDE & INTERCEPTION DOUBLE-CLIC)
+        // =========================================================================
+
+        // Fonction pour injecter proprement les données lues dans l'application Fylux-pro
+        function chargerDonneesDansApp(objetData) {
+            if (!objetData) return;
+            
+            // On remplit les champs visibles du formulaire
+            if (objetData.course) courseInput.value = objetData.course;
+            if (objetData.date) dateInput.value = objetData.date;
+            if (objetData.degree) degreeInput.value = objetData.degree;
+            if (objetData.content) contentInput.innerHTML = objetData.content;
+            
+            // On restaure les images jointes ou croquis s'il y en a
+            if (objetData.mediaList) {
+                currentMediaArray = [...objetData.mediaList];
+                renderMediaPreviews();
+            } else {
+                currentMediaArray = [];
+                renderMediaPreviews();
+            }
+            
+            // Si le fichier ouvert possède un ID existant dans la liste, on passe en mode édition
+            if (objetData.id) {
+                noteIdInput.value = objetData.id;
+                editorTitle.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-amber-500 block"></span> MODE ÉDITION (FICHIER PC)`;
+                submitBtn.textContent = "METTRE À JOUR LOCALEMENT";
+                cancelEditBtn.classList.remove('hidden');
+            }
+            
+            // On force le focus sur l'éditeur de texte
+            contentInput.focus();
+        }
+
+        // Fonction intermédiaire pour extraire l'état actuel et lancer la sauvegarde
+        function declencherSauvegardeLocale() {
+            // On prépare un objet JSON contenant toutes les métadonnées de la note en cours
+            const structureNote = {
+                id: noteIdInput.value || Date.now(),
+                course: courseInput.value.trim() || "Note Indéfinie",
+                date: dateInput.value,
+                degree: degreeInput.value,
+                content: contentInput.innerHTML.trim(),
+                mediaList: [...currentMediaArray]
+            };
+
+            // On convertit en chaîne de texte JSON lisible pour pouvoir l'écrire dans le fichier
+            const texteAEnregistrer = JSON.stringify(structureNote, null, 2);
+            
+            // On appelle le gestionnaire d'écriture sur le disque dur
+            sauvegarderFichier(texteAEnregistrer, structureNote.course);
+        }
+
+        // 1. FONCTION DE SAUVEGARDE SUR LE PC (Fenêtre "Enregistrer sous")
+        async function sauvegarderFichier(contenu, nomCours) {
+            try {
+                const options = {
+                    suggestedName: `${nomCours.toLowerCase().replace(/\s+/g, '-')}.fylux`,
+                    types: [{
+                        description: 'Fichiers Fylux-pro (*.fylux)',
+                        accept: { 'text/plain': ['.fylux', '.txt'] },
+                    }],
+                };
+                
+                const handle = await window.showSaveFilePicker(options);
+                const writable = await handle.createWritable();
+                
+                await writable.write(contenu);
+                await writable.close();
+                
+                alert("Dossier sauvegardé avec succès dans la mémoire de votre PC !");
+            } catch (err) {
+                console.log("Sauvegarde annulée ou bloquée par l'utilisateur.", err);
+            }
+        }
+
+        // 2. FONCTION POUR OUVRIR DEPUIS LE BOUTON DE L'APPLICATION
+        async function ouvrirFichierManuel() {
+            try {
+                const [handle] = await window.showOpenFilePicker({
+                    types: [{
+                        description: 'Fichiers Fylux-pro (*.fylux)',
+                        accept: { 'text/plain': ['.fylux', '.txt'] },
+                    }],
+                });
+                
+                const file = await handle.getFile();
+                const textRaw = await file.text();
+                
+                // On essaie de lire le contenu comme du JSON structuré Fylux
+                try {
+                    const objetData = JSON.parse(textRaw);
+                    chargerDonneesDansApp(objetData);
+                } catch(e) {
+                    // Si ce n'est pas du JSON (ex: simple fichier .txt), on l'injecte brut dans l'éditeur de texte
+                    chargerDonneesDansApp({
+                        course: "Fichier Texte Importé",
+                        date: new Date().toISOString().split('T')[0],
+                        degree: "💡 Normal",
+                        content: textRaw.replace(/\n/g, '<br>')
+                    });
+                }
+            } catch (err) {
+                console.log("Ouverture de fichier annulée.", err);
+            }
+        }
+
+        // 3. INTERCEPTION DU DOUBLE-CLIC SUR UN FICHIER DEPUIS LE BUREAU (LAUNCH QUEUE)
+        if ('launchQueue' in window) {
+            window.launchQueue.setConsumer((launchParams) => {
+                if (!launchParams.files.length) return;
+                
+                const fileHandle = launchParams.files[0];
+                
+                fileHandle.getFile()
+                    .then(file => file.text())
+                    .then(textRaw => {
+                        try {
+                            const objetData = JSON.parse(textRaw);
+                            chargerDonneesDansApp(objetData);
+                        } catch(e) {
+                            chargerDonneesDansApp({
+                                course: "Fichier Double-cliqué",
+                                date: new Date().toISOString().split('T')[0],
+                                degree: "💡 Normal",
+                                content: textRaw.replace(/\n/g, '<br>')
+                            });
+                        }
+                    })
+                    .catch(err => console.error("Erreur système lors de la lecture du fichier lancé :", err));
+            });
+        }
     </script>
 </body>
 </html>

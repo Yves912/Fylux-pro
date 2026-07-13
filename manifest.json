@@ -4,6 +4,15 @@
   "description": "Système de consignation et de classement de notes universitaires par cours et sessions.",
   "start_url": "./index.html",
   "display": "standalone",
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "text/plain": [".fylux", ".txt"]
+      },
+      "launch_type": "single-client"
+    }
+  ],
   "background_color": "#020617",
   "theme_color": "#0f172a",
   "icons": [
@@ -18,4 +27,7 @@
       "type": "image/png"
     }
   ]
+  
 }
+
+
